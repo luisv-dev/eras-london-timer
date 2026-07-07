@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eras London Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E17;
+    --panel: #131A26;
+    --panel-edge: #202A3B;
+    --text: #E7ECF3;
+    --muted: #6B7686;
+    --ready: #39E6C0;
+    --ready-dim: #1B4A44;
+    --active: #F5B94D;
+    --active-dim: #4A3C1E;
+    --cooldown: #FF6B5B;
+    --cooldown-dim: #4A2620;
+    --warn: #FF3D6E;
+    --tm: #9B7BFF;
+    --tm-dim: #362A66;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Space Grotesk', sans-serif; min-height:100vh;
+  }
+  .wrap{ max-width:1080px; margin:0 auto; padding:26px 20px 50px; }
+  header{ margin-bottom:20px; }
+  h1{ font-size:27px; font-weight:700; margin:0 0 6px; letter-spacing:-0.01em; }
+  .howto{ color:var(--muted); font-size:13.5px; line-height:1.5; max-width:640px; margin:0 0 16px; }
+  .howto b{ color:var(--text); }
+  .log-panel{
+    background:var(--panel); border:1px solid var(--panel-edge); border-radius:14px;
+    padding:14px 16px; margin-top:14px; max-height:180px; overflow-y:auto;
+  }
+  .log-row{
+    display:flex; justify-content:space-between; font-family:'JetBrains Mono', monospace;
+    font-size:12.5px; padding:5px 2px; color:var(--text); border-bottom:1px solid var(--panel-edge);
+  }
+  .log-row:last-child{ border-bottom:none; }
+  .log-row span:first-child{ color:var(--muted); }
+  .log-empty{ font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); }
+
+  .control-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .sound-btn, .new-game-btn{
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:.04em;
+    background:var(--panel); border:1px solid var(--panel-edge); color:var(--text);
+    padding:9px 14px; border-radius:8px; cursor:pointer; transition:border-color .15s;
+  }
+  .sound-btn.on{ color:var(--ready); border-color:var(--ready-dim); }
+  .sound-btn.off{ color:var(--muted); }
+  .new-game-btn{ color:var(--warn); border-color:var(--cooldown-dim); margin-left:auto; }
+  .new-game-btn:hover{ border-color:var(--warn); }
+  .vol-wrap, .warn-wrap{ display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
+  .vol-wrap input[type=range]{ accent-color: var(--ready); width:120px; }
+  .warn-wrap input[type=number]{
+    width:52px; background:#0d121c; border:1px solid var(--panel-edge); color:var(--text);
+    border-radius:6px; padding:6px 7px; font-family:'JetBrains Mono', monospace; font-size:12px;
+  }
+  .vol-val{ width:36px; text-align:right; }
+
+  /* Capital hero */
+  .capital-card{
+    background:linear-gradient(160deg, #171F30, var(--panel));
+    border:1.5px solid var(--tm); border-radius:20px; padding:26px 28px;
+    margin-top:22px; display:flex; gap:28px; align-items:center; flex-wrap:wrap;
+    box-shadow:0 0 40px -12px rgba(155,123,255,.35);
+  }
+  .capital-card.warning{ border-color:var(--warn); box-shadow:0 0 40px -8px var(--warn); }
+  .capital-left{ flex:1; min-width:220px; }
+  .capital-log-col{
+    width:190px; flex-shrink:0; align-self:stretch; display:flex; flex-direction:column;
+  }
+  .capital-log-label{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:.12em; color:var(--muted);
+    text-transform:uppercase; margin-bottom:8px;
+  }
+  .log-panel.inline{
+    margin-top:0; max-height:150px; background:rgba(0,0,0,.18); flex:1;
+  }
+  .capital-label{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.16em; color:var(--tm); text-transform:uppercase; }
+  .capital-name{
+    background:transparent; border:none; color:var(--text); font-family:'Space Grotesk', sans-serif;
+    font-weight:700; font-size:24px; padding:2px 0 10px; outline:none; width:100%;
+  }
+  .capital-bonus{ font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--tm); margin-bottom:14px; min-height:18px; }
+  .capital-actions{ display:flex; gap:10px; }
+  .tm-toggle{
+    display:flex; align-items:center; gap:8px;
+    background:var(--tm-dim); border:1px solid var(--tm); color:var(--tm);
+    border-radius:10px; padding:11px 16px; cursor:pointer; font-weight:600; font-size:13.5px; margin-top:14px;
+  }
+  .tm-toggle.off{ background:transparent; border-color:var(--panel-edge); color:var(--muted); }
+  .tm-toggle .dot{ width:9px; height:9px; border-radius:50%; background:var(--tm); }
+  .tm-toggle.off .dot{ background:var(--muted); }
+
+  .ring-wrap{ position:relative; width:150px; height:150px; flex-shrink:0; }
+  .ring-wrap.big{ width:190px; height:190px; }
+  .ring-wrap svg{ transform:rotate(-90deg); width:100%; height:100%; }
+  .ring-bg{ fill:none; stroke:#1c2433; stroke-width:8; }
+  .ring-fg{ fill:none; stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset .2s linear, stroke .2s; }
+  .ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .time{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:26px; letter-spacing:-.01em; }
+  .ring-wrap.big .time{ font-size:34px; }
+  .status{ font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; margin-top:3px; color:var(--muted); }
+  .status.ready{ color:var(--ready); } .status.active{ color:var(--active); }
+  .status.cooldown{ color:var(--cooldown); } .status.warning{ color:var(--warn); }
+
+  .gear{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:17px; padding:4px 6px; border-radius:6px; }
+  .gear:hover{ color:var(--text); background:rgba(255,255,255,.06); }
+
+  .section-label{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.16em; color:var(--muted);
+    text-transform:uppercase; margin:26px 2px 10px;
+  }
+  .grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+  @media (max-width:700px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--panel); border:1px solid var(--panel-edge); border-radius:16px;
+    padding:16px 16px 14px; position:relative; transition:border-color .25s, box-shadow .25s;
+  }
+  .card.ready{ border-color:var(--ready-dim); box-shadow:0 0 0 1px var(--ready-dim), 0 0 20px -8px var(--ready); }
+  .card.active{ border-color:var(--active-dim); }
+  .card.cooldown{ border-color:var(--cooldown-dim); }
+  .card.warning{ border-color:var(--warn); box-shadow:0 0 0 1px var(--warn), 0 0 26px -6px var(--warn); }
+
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .name-input{
+    background:transparent; border:none; color:var(--text); font-family:'Space Grotesk', sans-serif;
+    font-weight:600; font-size:14.5px; padding:0; width:100%; outline:none;
+  }
+  .card .ring-wrap{ margin:12px auto 6px; }
+
+  .actions{ display:flex; gap:8px; margin-top:6px; }
+  .btn{
+    flex:1; font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13.5px;
+    border-radius:9px; padding:10px 8px; cursor:pointer; border:1px solid transparent;
+    background:var(--ready-dim); color:var(--ready);
+  }
+  .btn.stop{ background:var(--cooldown-dim); color:var(--cooldown); }
+
+  .settings{
+    margin-top:12px; padding-top:12px; border-top:1px dashed var(--panel-edge);
+    display:none; gap:10px; flex-direction:column;
+  }
+  .settings.open{ display:flex; }
+  .settings label{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:4px;
+  }
+  .settings .row{ display:flex; gap:8px; }
+  .settings input[type=number], .settings input[type=text]{
+    width:100%; background:#0d121c; border:1px solid var(--panel-edge); color:var(--text);
+    border-radius:7px; padding:7px 8px; font-family:'JetBrains Mono', monospace; font-size:13px;
+  }
+  .test-btn{
+    margin-top:2px; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted);
+    background:transparent; border:1px solid var(--panel-edge); border-radius:7px; padding:7px; cursor:pointer;
+  }
+  .test-btn:hover{ color:var(--text); border-color:var(--ready); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Eras London Timer</h1>
+    <p class="howto">When your match starts, tap <b>Enable</b> on Capital City — it's already on cooldown in-game. Tap <b>Enable</b> on each Trainer the moment you are ready to hit the trainer ability. From then on just listen: each one calls out its own name when it's about to fire again.</p>
+    <div class="control-row">
+      <button class="sound-btn on" id="soundBtn">🔊 Sound: ON</button>
+      <div class="vol-wrap">
+        <span>VOL</span>
+        <input type="range" id="volSlider" min="0" max="200" value="150">
+        <span class="vol-val" id="volVal">150%</span>
+      </div>
+      <div class="warn-wrap">
+        <span>Warn before (s)</span>
+        <input type="number" id="warnInput" min="0" value="2">
+      </div>
+      <button class="new-game-btn" id="newGameBtn">⟲ New game</button>
+    </div>
+  </header>
+
+  <div class="capital-card ready" id="capitalCard"></div>
+
+  <div class="section-label">Trainers</div>
+  <div class="grid" id="trainerGrid"></div>
+</div>
+
+<script>
+const RADIUS = 67, RADIUS_BIG = 85;
+const CIRC = 2 * Math.PI * RADIUS;
+const CIRC_BIG = 2 * Math.PI * RADIUS_BIG;
+
+let soundOn = true;
+let audioCtx = null, masterGain = null, compressor = null;
+let volume = 1.5;
+let warnBeforeSeconds = 2;
+const GAME_CLOCK_RATIO = 1.4; // fixed: StarCraft "Faster" speed — game-clock seconds run 1.4x real seconds
+
+document.getElementById('volSlider').addEventListener('input', (e)=>{
+  volume = parseInt(e.target.value)/100;
+  document.getElementById('volVal').textContent = e.target.value + '%';
+  if(masterGain) masterGain.gain.value = volume;
+});
+document.getElementById('warnInput').addEventListener('change', (e)=>{
+  warnBeforeSeconds = Math.max(0, parseFloat(e.target.value)||0);
+});
+
+function ensureAudio(){
+  if(audioCtx) return;
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = -28; compressor.knee.value = 10; compressor.ratio.value = 18;
+  compressor.attack.value = 0.002; compressor.release.value = 0.15;
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = volume;
+  masterGain.connect(compressor);
+  compressor.connect(audioCtx.destination);
+}
+// unlock audio on first user interaction anywhere, since sound defaults ON
+function unlockAudio(){
+  ensureAudio();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  document.removeEventListener('pointerdown', unlockAudio);
+  document.removeEventListener('keydown', unlockAudio);
+}
+document.addEventListener('pointerdown', unlockAudio);
+document.addEventListener('keydown', unlockAudio);
+
+function beep(freq, dur, type='square', vol=1){
+  if(!soundOn) return;
+  ensureAudio();
+  try{
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(masterGain);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur + 0.02);
+  }catch(e){}
+}
+function speak(text){
+  if(!soundOn) return;
+  if(!('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.volume = 1; u.rate = 1.05; u.pitch = 1.1;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+function alarm(text){
+  beep(900, 0.15, 'square', 1);
+  setTimeout(()=>beep(1200, 0.15, 'square', 1), 150);
+  setTimeout(()=>beep(1500, 0.2, 'square', 1), 300);
+  setTimeout(()=> speak(text), 380);
+}
+
+document.getElementById('soundBtn').addEventListener('click', (e)=>{
+  soundOn = !soundOn;
+  e.target.classList.toggle('on', soundOn);
+  e.target.classList.toggle('off', !soundOn);
+  e.target.textContent = soundOn ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+  if(soundOn){ unlockAudio(); beep(700, 0.1, 'sine', 0.5); }
+});
+
+// Finds the earliest start time (>=0) for a window of `durationMs` that
+// doesn't overlap any interval in `busyIntervals` ([start,end] pairs, relative to now).
+function findFreeSlot(durationMs, busyIntervals){
+  let candidate = 0;
+  let changed = true;
+  let guard = 0;
+  while(changed && guard < 200){
+    changed = false;
+    guard++;
+    for(const [s,e] of busyIntervals){
+      if(e <= candidate) continue;
+      if(s < candidate + durationMs && e > candidate){
+        candidate = e;
+        changed = true;
+      }
+    }
+  }
+  return candidate;
+}
+
+// ---- Timer class ----
+class Timer {
+  constructor(el, data, big){
+    this.el = el;
+    this.kind = data.kind; // 'capital' | 'trainer'
+    this.name = data.name;
+    this.duration = data.duration; // 0 for capital
+    this.cooldown = data.cooldown;
+    this.alertText = data.alertText;
+    this.bonusPercent = data.bonusPercent || 0;
+    this.tmBonusPercent = data.tmBonusPercent || 0;
+    this.tmOn = false;
+    this.running = false;
+    this.elapsedMs = 0;
+    this.warnFired = false;
+    this.phase = 'ready';
+    this.big = big;
+    this.render();
+  }
+  cycleLength(){ return Math.max(this.duration, this.cooldown, 0.001); }
+  // Prevents a settings edit mid-run (e.g. shrinking cooldown below the current
+  // elapsed time) from making the next tick think a full cycle just completed.
+  clampElapsedToCycle(){
+    if(!this.running) return;
+    const cycleMs = this.cycleLength()*1000;
+    if(this.elapsedMs > cycleMs - 1) this.elapsedMs = Math.max(0, cycleMs - 1);
+  }
+  render(){
+    const isCapital = this.kind === 'capital';
+    const r = this.big ? RADIUS_BIG : RADIUS;
+    const circ = this.big ? CIRC_BIG : CIRC;
+    if(isCapital){
+      this.el.innerHTML = `
+        <div class="ring-wrap big">
+          <svg viewBox="0 0 200 200">
+            <circle class="ring-bg" cx="100" cy="100" r="${r}"></circle>
+            <circle class="ring-fg" data-role="ring" cx="100" cy="100" r="${r}" stroke-dasharray="${circ}" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="time" data-role="time">--:--</div>
+            <div class="status" data-role="status">READY</div>
+          </div>
+        </div>
+        <div class="capital-left">
+          <div class="capital-label">Command</div>
+          <input class="capital-name" value="${this.name}" data-role="name">
+          <div class="capital-bonus" data-role="bonusReadout"></div>
+          <div class="capital-actions">
+            <button class="btn" data-role="use">Enable</button>
+            <button class="gear" data-role="gear">⚙</button>
+          </div>
+          <button class="tm-toggle off" data-role="tmToggle"><span class="dot"></span> Temporal Manipulator <span data-role="tmState" style="margin-left:6px;opacity:.8">OFF</span></button>
+          <div class="settings" data-role="settings">
+            <div class="row">
+              <div style="flex:1">
+                <label>Base cooldown (in-game s)</label>
+                <input type="number" min="0" data-role="cooldownInput" value="${this.cooldown}">
+              </div>
+              <div style="flex:1">
+                <label>Temporal Manipulator bonus (%)</label>
+                <input type="number" step="0.5" data-role="tmBonusInput" value="${this.tmBonusPercent}">
+              </div>
+            </div>
+            <div class="row">
+              <div style="flex:1">
+                <label>Alert phrase</label>
+                <input type="text" data-role="alertTextInput" value="${this.alertText}">
+              </div>
+            </div>
+            <button class="test-btn" data-role="test">🔊 Test alert</button>
+          </div>
+        </div>
+        <div class="capital-log-col">
+          <div class="capital-log-label">Cycle log</div>
+          <div class="log-panel inline" id="capitalLog"></div>
+        </div>
+      `;
+    } else {
+      this.el.innerHTML = `
+        <div class="card-top">
+          <input class="name-input" value="${this.name}" data-role="name">
+          <button class="gear" data-role="gear">⚙</button>
+        </div>
+        <div class="ring-wrap">
+          <svg viewBox="0 0 160 160">
+            <circle class="ring-bg" cx="80" cy="80" r="${r}"></circle>
+            <circle class="ring-fg" data-role="ring" cx="80" cy="80" r="${r}" stroke-dasharray="${circ}" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="time" data-role="time">--:--</div>
+            <div class="status" data-role="status">READY</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" data-role="use">Enable</button>
+        </div>
+        <div class="settings" data-role="settings">
+          <div class="row">
+            <div style="flex:1">
+              <label>Active duration (in-game s)</label>
+              <input type="number" min="0" data-role="durationInput" value="${this.duration}">
+            </div>
+            <div style="flex:1">
+              <label>Total cooldown from use (in-game s)</label>
+              <input type="number" min="0" data-role="cooldownInput" value="${this.cooldown}">
+            </div>
+          </div>
+          <div class="row">
+            <div style="flex:1">
+              <label>Capital speed bonus while active (%)</label>
+              <input type="number" step="0.5" data-role="bonusInput" value="${this.bonusPercent}">
+            </div>
+            <div style="flex:1.4">
+              <label>Alert phrase</label>
+              <input type="text" data-role="alertTextInput" value="${this.alertText}">
+            </div>
+          </div>
+          <button class="test-btn" data-role="test">🔊 Test alert</button>
+        </div>
+      `;
+    }
+    this.nameInput = this.el.querySelector('[data-role=name]');
+    this.gearBtn = this.el.querySelector('[data-role=gear]');
+    this.ring = this.el.querySelector('[data-role=ring]');
+    this.timeEl = this.el.querySelector('[data-role=time]');
+    this.statusEl = this.el.querySelector('[data-role=status]');
+    this.useBtn = this.el.querySelector('[data-role=use]');
+    this.settingsEl = this.el.querySelector('[data-role=settings]');
+    this.durationInput = this.el.querySelector('[data-role=durationInput]');
+    this.cooldownInput = this.el.querySelector('[data-role=cooldownInput]');
+    this.alertTextInput = this.el.querySelector('[data-role=alertTextInput]');
+    this.testBtn = this.el.querySelector('[data-role=test]');
+    this.bonusInput = this.el.querySelector('[data-role=bonusInput]');
+    this.tmBonusInput = this.el.querySelector('[data-role=tmBonusInput]');
+    this.tmToggleBtn = this.el.querySelector('[data-role=tmToggle]');
+    this.tmStateEl = this.el.querySelector('[data-role=tmState]');
+    this.bonusReadoutEl = this.el.querySelector('[data-role=bonusReadout]');
+
+    this.nameInput.addEventListener('input', ()=> this.name = this.nameInput.value);
+    this.gearBtn.addEventListener('click', ()=> this.settingsEl.classList.toggle('open'));
+    if(this.durationInput) this.durationInput.addEventListener('change', ()=> { this.duration = Math.max(0, parseFloat(this.durationInput.value)||0); this.clampElapsedToCycle(); });
+    this.cooldownInput.addEventListener('change', ()=> { this.cooldown = Math.max(0, parseFloat(this.cooldownInput.value)||0); this.clampElapsedToCycle(); });
+    this.alertTextInput.addEventListener('input', ()=> this.alertText = this.alertTextInput.value);
+    this.testBtn.addEventListener('click', ()=> alarm(this.alertText));
+    this.useBtn.addEventListener('click', ()=> this.toggleRun());
+    if(this.bonusInput) this.bonusInput.addEventListener('change', ()=> this.bonusPercent = parseFloat(this.bonusInput.value)||0);
+    if(this.tmBonusInput) this.tmBonusInput.addEventListener('change', ()=> this.tmBonusPercent = parseFloat(this.tmBonusInput.value)||0);
+    if(this.tmToggleBtn) this.tmToggleBtn.addEventListener('click', ()=>{
+      this.tmOn = !this.tmOn;
+      this.tmToggleBtn.classList.toggle('off', !this.tmOn);
+      this.tmStateEl.textContent = this.tmOn ? 'ON' : 'OFF';
+    });
+
+    this.applyPhaseStyles();
+  }
+  toggleRun(){
+    if(!this.running){
+      this.running = true; this.warnFired = false; this.realElapsedInCycleMs = 0;
+      const cycleMs = this.cycleLength()*1000;
+      let delayMs = 0;
+      if(this.kind === 'trainer'){
+        // Trainer buffs don't stack: find the next slot where this trainer's
+        // full active window doesn't overlap ANY other running trainer's
+        // active window, now or in upcoming cycles (not just this instant).
+        const others = trainers.filter(t => t !== this && t.running);
+        const busy = [];
+        const horizonMs = cycleMs * 3 + 1;
+        others.forEach(o=>{
+          const oCycleMs = o.cycleLength()*1000;
+          const oActiveMs = o.duration*1000;
+          const elapsedInCycle = o.elapsedMs % oCycleMs;
+          for(let k=-1; k*oCycleMs < horizonMs; k++){
+            const start = -elapsedInCycle + k*oCycleMs;
+            const end = start + oActiveMs;
+            if(end > 0 && start < horizonMs) busy.push([start, end]);
+          }
+        });
+        delayMs = findFreeSlot(this.duration*1000, busy);
+      }
+      // Seed elapsedMs so the cycle wraps to 0 (active start) exactly delayMs from now.
+      this.elapsedMs = ((cycleMs - (delayMs % cycleMs)) % cycleMs + cycleMs) % cycleMs;
+    } else {
+      this.running = false; this.phase = 'ready';
+    }
+    this.applyPhaseStyles();
+  }
+  reset(){
+    this.running = false; this.elapsedMs = 0; this.warnFired = false; this.phase = 'ready'; this.realElapsedInCycleMs = 0;
+    if(this.kind === 'capital' && this.tmOn){
+      this.tmOn = false;
+      this.tmToggleBtn.classList.add('off');
+      this.tmStateEl.textContent = 'OFF';
+    }
+    this.applyPhaseStyles();
+  }
+  applyPhaseStyles(){
+    this.el.classList.remove('ready','active','cooldown','warning');
+    this.statusEl.classList.remove('ready','active','cooldown','warning');
+    const cls = this.running ? this.phase : 'ready';
+    this.el.classList.add(cls);
+    this.statusEl.classList.add(cls);
+    const labels = { ready:'READY', active:'ACTIVE', cooldown:'COOLDOWN', warning:'ALMOST READY' };
+    this.statusEl.textContent = labels[cls];
+    this.useBtn.classList.toggle('stop', this.running);
+    this.useBtn.textContent = this.running ? 'Stop loop' : 'Enable';
+    const color = cls === 'ready' ? 'var(--ready)' : cls === 'active' ? 'var(--active)' : cls === 'warning' ? 'var(--warn)' : 'var(--cooldown)';
+    this.ring.style.stroke = color;
+  }
+  update(dtMs){
+    if(!this.running){
+      this.timeEl.textContent = '✓';
+      this.ring.style.strokeDashoffset = 0;
+      if(this.bonusReadoutEl) this.bonusReadoutEl.textContent = '';
+      return;
+    }
+    const speedMultiplier = this.kind === 'capital' ? capitalSpeedMultiplier() : 1;
+    const gameDtMs = dtMs * GAME_CLOCK_RATIO;
+    this.elapsedMs += gameDtMs * speedMultiplier;
+    if(this.kind === 'capital') this.realElapsedInCycleMs = (this.realElapsedInCycleMs||0) + gameDtMs;
+    const cycleMs = this.cycleLength()*1000;
+    // realMsPerCycle: how much real (game-clock) time one full cycle represents at the
+    // current speed. Used instead of dumping the whole tick's realElapsedInCycleMs into
+    // the first completed cycle, which would happen if dtMs spans multiple cycles at once
+    // (e.g. the tab was backgrounded/throttled and catches up with one big tick).
+    const realMsPerCycle = cycleMs / speedMultiplier;
+    while(this.elapsedMs >= cycleMs){
+      this.elapsedMs -= cycleMs;
+      this.warnFired = false;
+      if(this.kind === 'capital'){
+        logCapitalCycle(realMsPerCycle/1000);
+        this.realElapsedInCycleMs -= realMsPerCycle;
+      }
+    }
+    const remainingMs = cycleMs - this.elapsedMs;
+    const remaining = Math.ceil(remainingMs/1000);
+    const mm = Math.floor(remaining/60).toString().padStart(2,'0');
+    const ss = (remaining%60).toString().padStart(2,'0');
+    this.timeEl.textContent = `${mm}:${ss}`;
+    const circ = this.big ? CIRC_BIG : CIRC;
+    this.ring.style.strokeDashoffset = circ * (remainingMs/cycleMs);
+
+    const inActive = this.elapsedMs < this.duration*1000;
+    const inWarnWindow = remainingMs <= warnBeforeSeconds*1000;
+    this.phase = inWarnWindow ? 'warning' : (inActive ? 'active' : 'cooldown');
+    this.applyPhaseStyles();
+
+    if(this.bonusReadoutEl){
+      const mult = capitalSpeedMultiplier();
+      const b = (mult - 1) * 100;
+      this.bonusReadoutEl.textContent = b > 0.01 ? `Speed bonus now: +${b.toFixed(1)}%` : 'No active speed bonus';
+    }
+
+    if(inWarnWindow && !this.warnFired){
+      this.warnFired = true;
+      alarm(this.alertText);
+    }
+  }
+}
+
+const capitalCycleLog = [];
+function logCapitalCycle(seconds){
+  capitalCycleLog.push(seconds);
+  renderCapitalLog();
+}
+function fmt(seconds){
+  const s = Math.round(seconds);
+  const mm = Math.floor(s/60).toString().padStart(2,'0');
+  const ss = (s%60).toString().padStart(2,'0');
+  return `${mm}:${ss}`;
+}
+function renderCapitalLog(){
+  const el = document.getElementById('capitalLog');
+  if(!el) return;
+  if(capitalCycleLog.length === 0){ el.innerHTML = '<div class="log-empty">No completed cycles yet.</div>'; return; }
+  el.innerHTML = capitalCycleLog.slice().reverse().map((s,i)=>{
+    const n = capitalCycleLog.length - i;
+    return `<div class="log-row"><span>#${n}</span><span>${fmt(s)}</span></div>`;
+  }).join('');
+}
+
+// Temporal Manipulator and an active Trainer's bonus multiply their (1 + bonus)
+// factors rather than adding the raw percentages — confirmed via in-game testing
+// (see AGENTS.md). Returns the speed MULTIPLIER (e.g. 1.725), not a percentage.
+function capitalSpeedMultiplier(){
+  let mult = 1;
+  if(capital && capital.tmOn) mult *= (1 + capital.tmBonusPercent/100);
+  const activeTrainer = trainers.find(t => t.running && t.phase === 'active');
+  if(activeTrainer) mult *= (1 + activeTrainer.bonusPercent/100);
+  return mult;
+}
+
+const trainerGrid = document.getElementById('trainerGrid');
+const capitalCard = document.getElementById('capitalCard');
+const trainers = [];
+const allTimers = [];
+let capital = null;
+
+capital = new Timer(capitalCard, { kind:'capital', name:'Capital City', duration:0, cooldown:300, alertText:'Capital', tmBonusPercent:50 }, true);
+allTimers.push(capital);
+
+['Trainer 1','Trainer 2','Trainer 3'].forEach(name=>{
+  const card = document.createElement('div');
+  card.className = 'card ready';
+  trainerGrid.appendChild(card);
+  const t = new Timer(card, { kind:'trainer', name, duration:35, cooldown:180, alertText:name, bonusPercent:15 }, false);
+  trainers.push(t); allTimers.push(t);
+});
+
+document.getElementById('newGameBtn').addEventListener('click', ()=>{
+  allTimers.forEach(t=>t.reset());
+  capitalCycleLog.length = 0;
+  renderCapitalLog();
+});
+renderCapitalLog();
+
+let lastTick = Date.now();
+setInterval(()=>{
+  const now = Date.now();
+  const dt = now - lastTick;
+  lastTick = now;
+  // Trainers first: capitalSpeedMultiplier() (used by capital.update()) reads
+  // trainer.phase, so trainers must be current for this tick before capital reads them.
+  trainers.forEach(t=>t.update(dt));
+  capital.update(dt);
+}, 100);
+</script>
+</body>
+</html>
