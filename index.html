@@ -607,7 +607,7 @@ document.getElementById('newGameBtn').addEventListener('click', ()=>{
 renderCapitalLog();
 
 let lastTick = Date.now();
-setInterval(()=>{
+function tick(){
   const now = Date.now();
   const dt = now - lastTick;
   lastTick = now;
@@ -615,7 +615,16 @@ setInterval(()=>{
   // trainer.phase, so trainers must be current for this tick before capital reads them.
   trainers.forEach(t=>t.update(dt));
   capital.update(dt);
-}, 100);
+}
+setInterval(tick, 100);
+// Backgrounded/hidden tabs get their setInterval throttled by the browser (mobile
+// browsers can drop to as little as 1 tick/minute after ~5min hidden) — the underlying
+// countdown math stays correct (dt is measured from real timestamps regardless), but the
+// on-screen display can sit stale for that whole throttled gap until the next tick fires.
+// Force an immediate tick the moment the tab regains focus so the display is never stale.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') tick();
+});
 </script>
 </body>
 </html>
